@@ -1058,6 +1058,25 @@ class Visualizer:
                     self.draw_text(text, center, color=lighter_color)
         return self.output
 
+    def draw_heatmaps(self, heatmaps, alphas, cmaps):
+        """
+        Args:
+            heatmap (ndarray): numpy array of shape (H, W), where H is the image height and
+                W is the image width. Array should be uint8 and so in range [0, 255].
+            heatmaps: List[ndarray]. Each array should be in [0, 1] where 0's would be transparent.
+            alphas: List[float]: Each element in [0, 1] where i-th index controls the transparency of heatmap i-th location
+            cmaps: List[cmap]: Each element contains the colormap in which its heatmap should be drawn.  
+
+        Returns:
+            output (VisImage): image object with heatmap drawn.
+        """
+        self.output.ax.imshow((self.output.img * 0.6).astype("uint8"), extent=(0, self.output.width, self.output.height, 0), interpolation="nearest", cmap = 'gray')
+        for (hm, cm, a) in zip(heatmaps, cmaps, alphas):
+            self.output.ax.imshow(hm, extent=(0, self.output.width, self.output.height, 0), alpha = a * hm, cmap = cm, vmin = 0.0, vmax = 1.0)
+
+        return self.output
+
+
     def draw_polygon(self, segment, color, edge_color=None, alpha=0.5):
         """
         Args:
