@@ -1070,7 +1070,7 @@ class Visualizer:
         Returns:
             output (VisImage): image object with heatmap drawn.
         """
-        self.output.ax.imshow((self.output.img * 0.6).astype("uint8"), extent=(0, self.output.width, self.output.height, 0), interpolation="nearest", cmap = 'gray')
+        self.output.ax.imshow((self.output.img).astype("uint8"), extent=(0, self.output.width, self.output.height, 0), interpolation="nearest", cmap = 'gray')
         for (hm, cm, a) in zip(heatmaps, cmaps, alphas):
             self.output.ax.imshow(hm, extent=(0, self.output.width, self.output.height, 0), alpha = a * hm, cmap = cm, vmin = 0.0, vmax = 1.0)
 
