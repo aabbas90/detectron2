@@ -310,7 +310,7 @@ class PanopticDeepLabSemSegHead(DeepLabV3PlusHead):
 
     def layers(self, features):
         assert self.decoder_only
-        y = super().layers(features)
+        y, _ = super().layers(features)
         y = self.head(y)
         y = self.predictor(y)
         return y
@@ -490,7 +490,7 @@ class PanopticDeepLabInsEmbedHead(DeepLabV3PlusHead):
 
     def layers(self, features):
         assert self.decoder_only
-        y = super().layers(features)
+        y, _ = super().layers(features)
         # center
         center = self.center_head(y)
         center = self.center_predictor(center)

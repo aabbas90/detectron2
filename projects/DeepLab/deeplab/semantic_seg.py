@@ -202,17 +202,23 @@ class DeepLabV3PlusHead(nn.Module):
             In training, returns (None, dict of losses)
             In inference, returns (CxHxW logits, {})
         """
-        y = self.layers(features)
+        y, affinities = self.layers(features)
         if self.decoder_only:
             # Output from self.layers() only contains decoder feature.
-            return y
+            return y, affinities
         if self.training:
-            return None, self.losses(y, targets)
+            return None, self.losses(y, targets), affinities
         else:
             y = F.interpolate(
                 y, scale_factor=self.common_stride, mode="bilinear", align_corners=False
             )
-            return y, {}
+            return y, {}, affinities
+
+    def compute_edge_probabilities(self, features_a, features_b):
+        # Uses cosine similarity to compute probability of two vectors being similar.
+        dotP = torch.sum(torch.mul(features_a, features_b), dim = 1)
+        norm = torch.sqrt(torch.sum(features_a ** 2, dim = 1)) * torch.sqrt(torch.sum(features_b ** 2, dim = 1))
+        return 1 - ((1.0 + torch.div(dotP, norm).unsqueeze(1)) / 2.0)
 
     def layers(self, features):
         # Reverse feature maps into top-down order (from low to high resolution)
@@ -227,9 +233,18 @@ class DeepLabV3PlusHead(nn.Module):
                 y = F.interpolate(y, size=proj_x.size()[2:], mode="bilinear", align_corners=False)
                 y = torch.cat([proj_x, y], dim=1)
                 y = self.decoder[f]["fuse_conv"](y)
+
+        # row_probs = self.compute_edge_probabilities(y[:, :, 1:, :], y[:, :, :-1, :])
+        # row_probs = torch.nn.ZeroPad2d((0, 0, 0, 1))(row_probs)
+        # # Forward difference in col for col probabilities:
+        # # col_probs = torch.zeros((affinities_features.shape[0], 1, affinities_features.shape[2], affinities_features.shape[3]), device=affinities_features.device)
+        # col_probs = self.compute_edge_probabilities(y[:, :, :, 1:], y[:, :, :, :-1])
+        # col_probs = torch.nn.ZeroPad2d((0, 1, 0, 0))(col_probs)
+        # affinities = (row_probs + col_probs) / 2
+        affinities = None 
         if not self.decoder_only:
             y = self.predictor(y)
-        return y
+        return y, affinities
 
     def losses(self, predictions, targets):
         predictions = F.interpolate(

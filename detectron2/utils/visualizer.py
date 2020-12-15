@@ -407,7 +407,7 @@ class Visualizer:
         )
         return self.output
 
-    def draw_sem_seg(self, sem_seg, area_threshold=None, alpha=0.8):
+    def draw_sem_seg(self, sem_seg, area_threshold=None, alpha=0.8, draw_text = True):
         """
         Draw semantic segmentation predictions/labels.
 
@@ -433,6 +433,8 @@ class Visualizer:
 
             binary_mask = (sem_seg == label).astype(np.uint8)
             text = self.metadata.stuff_classes[label]
+            if not draw_text:
+                text = None
             self.draw_binary_mask(
                 binary_mask,
                 color=mask_color,
@@ -1072,7 +1074,7 @@ class Visualizer:
         """
         self.output.ax.imshow((self.output.img).astype("uint8"), extent=(0, self.output.width, self.output.height, 0), interpolation="nearest", cmap = 'gray')
         for (hm, cm, a) in zip(heatmaps, cmaps, alphas):
-            self.output.ax.imshow(hm, extent=(0, self.output.width, self.output.height, 0), alpha = a * hm, cmap = cm, vmin = 0.0, vmax = 1.0)
+            self.output.ax.imshow(hm, extent=(0, self.output.width, self.output.height, 0), alpha = a * hm, cmap = cm, vmin = 0.0, vmax = 1.0, interpolation="nearest")
 
         return self.output
 

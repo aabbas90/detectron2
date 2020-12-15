@@ -232,8 +232,10 @@ class SimpleTrainer(TrainerBase):
         """
         If you want to do something with the losses, you can wrap the model.
         """
+        model_start = time.perf_counter()
         loss_dict = self.model(data)
         losses = sum(loss_dict.values())
+        model_end = time.perf_counter()
 
         """
         If you need to accumulate gradients or do something similar, you can
@@ -248,6 +250,7 @@ class SimpleTrainer(TrainerBase):
         ) if losses.device.type == "cuda" else _nullcontext():
             metrics_dict = loss_dict
             metrics_dict["data_time"] = data_time
+            metrics_dict["model_time"] = model_end - model_start
             self._write_metrics(metrics_dict)
             self._detect_anomaly(losses, loss_dict)
 
@@ -257,6 +260,19 @@ class SimpleTrainer(TrainerBase):
         suboptimal as explained in https://arxiv.org/abs/2006.15704 Sec 3.2.4
         """
         self.optimizer.step()
+        # For ensuring correct gradient directions:
+        # loss_hist = []
+        # for i in range(100):
+        #     loss_dict = self.model(data)
+        #     losses = sum(loss_dict.values())
+        #     loss_hist.append(losses.item())
+        #     print("Loss at: {} = {}".format(i, losses))
+        #     self.optimizer.zero_grad()
+        #     losses.backward()
+        #     self.optimizer.step()
+        # print(loss_hist)
+        # import pdb; pdb.set_trace()
+        # loss_dict = self.model(data)
 
     def _detect_anomaly(self, losses, loss_dict):
         if not torch.isfinite(losses).all():
@@ -287,12 +303,15 @@ class SimpleTrainer(TrainerBase):
                 data_time = np.max([x.pop("data_time") for x in all_metrics_dict])
                 self.storage.put_scalar("data_time", data_time)
 
+            if "model_time" in all_metrics_dict[0]:
+                model_time = np.max([x.pop("model_time") for x in all_metrics_dict])
+                self.storage.put_scalar("model_time", model_time)
+
             # average the rest metrics
             metrics_dict = {
                 k: np.mean([x[k] for x in all_metrics_dict]) for k in all_metrics_dict[0].keys()
             }
             total_losses_reduced = sum(loss for loss in metrics_dict.values())
-
             self.storage.put_scalar("total_loss", total_losses_reduced)
             if len(metrics_dict) > 1:
                 self.storage.put_scalars(**metrics_dict)
