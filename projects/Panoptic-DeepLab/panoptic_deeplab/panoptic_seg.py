@@ -52,6 +52,8 @@ class PanopticDeepLab(nn.Module):
         self.nms_kernel = cfg.MODEL.PANOPTIC_DEEPLAB.NMS_KERNEL
         self.top_k = cfg.MODEL.PANOPTIC_DEEPLAB.TOP_K_INSTANCE
         self.predict_instances = cfg.MODEL.PANOPTIC_DEEPLAB.PREDICT_INSTANCES
+        self.input_format = cfg.INPUT.FORMAT
+
 
     @property
     def device(self):
@@ -159,6 +161,22 @@ class PanopticDeepLab(nn.Module):
             processed_results.append({"sem_seg": r})
             panoptic_image = panoptic_image.squeeze(0)
             semantic_prob = F.softmax(r, dim=0)
+
+            # Write results to disk:
+            img = input_per_image["image"]
+            from detectron2.utils.visualizer import Visualizer
+            from detectron2.data.detection_utils import convert_image_to_rgb
+            from PIL import Image 
+            import os
+
+            img = convert_image_to_rgb(img.permute(1, 2, 0), self.input_format).astype("uint8")
+            v_panoptic = Visualizer(img, self.meta)
+            v_panoptic = v_panoptic.draw_panoptic_seg_predictions(panoptic_image.cpu(), None)
+            pan_img = v_panoptic.get_image()
+            image_path = input_per_image['file_name'].split(os.sep)
+            image_name = os.path.splitext(image_path[-1])[0] 
+            Image.fromarray(pan_img).save(os.path.join('/home/ahabbas/projects/conseg/affinityNet/output_pdl/eval_vis', image_name + '_panoptic.png'))
+
             # For panoptic segmentation evaluation.
             processed_results[-1]["panoptic_seg"] = (panoptic_image, None)
             # For instance segmentation evaluation.
@@ -310,7 +328,7 @@ class PanopticDeepLabSemSegHead(DeepLabV3PlusHead):
 
     def layers(self, features):
         assert self.decoder_only
-        y, _ = super().layers(features)
+        y = super().layers(features)
         y = self.head(y)
         y = self.predictor(y)
         return y
@@ -490,7 +508,7 @@ class PanopticDeepLabInsEmbedHead(DeepLabV3PlusHead):
 
     def layers(self, features):
         assert self.decoder_only
-        y, _ = super().layers(features)
+        y = super().layers(features)
         # center
         center = self.center_head(y)
         center = self.center_predictor(center)

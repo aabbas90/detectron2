@@ -32,7 +32,7 @@ class CityscapesEvaluator(DatasetEvaluator):
         self._logger = logging.getLogger(__name__)
 
     def reset(self):
-        self._working_dir = tempfile.TemporaryDirectory(prefix="cityscapes_eval_", dir = "/home/ahabbas/tmp/")
+        self._working_dir = tempfile.TemporaryDirectory(prefix="cityscapes_eval_")
         self._temp_dir = self._working_dir.name
         # All workers will write to the same results directory
         # TODO this does not work in distributed training

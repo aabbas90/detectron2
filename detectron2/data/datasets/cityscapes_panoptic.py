@@ -29,17 +29,22 @@ def get_cityscapes_panoptic_files(image_dir, gt_dir, json_info):
             suffix = "_leftImg8bit.png"
             assert basename.endswith(suffix), basename
             basename = os.path.basename(basename)[: -len(suffix)]
+            # if basename != 'lindau_000017_000019':
+            #     continue
 
             image_dict[basename] = image_file
 
     for ann in json_info["annotations"]:
+        # if ann["image_id"] != 'lindau_000017_000019':
+        #     continue
+
         image_file = image_dict.get(ann["image_id"], None)
         assert image_file is not None, "No image {} found for annotation {}".format(
             ann["image_id"], ann["file_name"]
         )
         label_file = os.path.join(gt_dir, ann["file_name"])
         segments_info = ann["segments_info"]
-
+        
         files.append((image_file, label_file, segments_info))
 
     assert len(files), "No images found in {}".format(image_dir)

@@ -136,7 +136,7 @@ class COCOPanopticEvaluator(DatasetEvaluator):
             from panopticapi.evaluation import pq_compute
 
             with contextlib.redirect_stdout(io.StringIO()):
-                pq_res = pq_compute(
+                pq_res, pq_per_image_res = pq_compute(
                     gt_json,
                     PathManager.get_local_path(self._predictions_json),
                     gt_folder=gt_folder,
@@ -156,7 +156,7 @@ class COCOPanopticEvaluator(DatasetEvaluator):
 
         results = OrderedDict({"panoptic_seg": res})
         _print_panoptic_results(pq_res)
-
+        _print_panoptic_results_per_image(pq_per_image_res)
         return results
 
 
@@ -170,6 +170,23 @@ def _print_panoptic_results(pq_res):
         data, headers=headers, tablefmt="pipe", floatfmt=".3f", stralign="center", numalign="center"
     )
     logger.info("Panoptic Evaluation Results:\n" + table)
+
+
+def _print_panoptic_results_per_image(pq_per_image_res):
+    headers = ["", "PQ", "SQ", "RQ", "#categories"]
+    data = []
+    pq_all = []
+    for name, pq_res in pq_per_image_res.items():
+        row = [name] + [pq_res[k] * 100 for k in ["pq", "sq", "rq"]] + [pq_res["n"]]
+        data.append(row)
+        pq_all.append(pq_res["pq"])
+    
+    sorted_data = [x for _,x in sorted(zip(pq_all,data))]
+
+    table = tabulate(
+        sorted_data, headers=headers, tablefmt="pipe", floatfmt=".3f", stralign="center", numalign="center"
+    )
+    logger.info("Panoptic Evaluation Per Image Results:\n" + table)
 
 
 if __name__ == "__main__":
