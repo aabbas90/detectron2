@@ -173,18 +173,21 @@ def _print_panoptic_results(pq_res):
 
 
 def _print_panoptic_results_per_image(pq_per_image_res):
-    headers = ["", "PQ", "SQ", "RQ", "#categories"]
+    headers = ["", "PQ", "SQ", "RQ", "#categories", "PQ_st", "SQ_st", "RQ_st", "PQ_th", "SQ_th", "RQ_th"]
     data = []
     pq_all = []
     for name, pq_res in pq_per_image_res.items():
-        row = [name] + [pq_res[k] * 100 for k in ["pq", "sq", "rq"]] + [pq_res["n"]]
+        row = ([name] + [pq_res[k] * 100 for k in ["pq", "sq", "rq"]] + [pq_res["n"]] + 
+                [pq_res["results_stuff"][k] * 100 for k in ["pq", "sq", "rq"]] +
+                [pq_res["results_thing"][k] * 100 for k in ["pq", "sq", "rq"]])
+
         data.append(row)
         pq_all.append(pq_res["pq"])
     
     sorted_data = [x for _,x in sorted(zip(pq_all,data))]
 
     table = tabulate(
-        sorted_data, headers=headers, tablefmt="pipe", floatfmt=".3f", stralign="center", numalign="center"
+        sorted_data, headers=headers, tablefmt="pipe", floatfmt=".3f", stralign="left", numalign="center"
     )
     logger.info("Panoptic Evaluation Per Image Results:\n" + table)
 
