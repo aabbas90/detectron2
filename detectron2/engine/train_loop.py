@@ -266,7 +266,6 @@ class SimpleTrainer(TrainerBase):
         #     loss_dict = self.model(data)
         #     losses = sum(loss_dict.values())
         #     loss_hist.append(losses.item())
-        #     print("Loss at: {} = {}".format(i, losses))
         #     self.optimizer.zero_grad()
         #     losses.backward()
         #     self.optimizer.step()

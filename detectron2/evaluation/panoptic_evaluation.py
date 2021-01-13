@@ -161,10 +161,13 @@ class COCOPanopticEvaluator(DatasetEvaluator):
 
 
 def _print_panoptic_results(pq_res):
-    headers = ["", "PQ", "SQ", "RQ", "#categories"]
+    headers = ["", "PQ", "SQ", "RQ", "#categories", "IoU", "TP", "FP", "FN"]
     data = []
     for name in ["All", "Things", "Stuff"]:
-        row = [name] + [pq_res[name][k] * 100 for k in ["pq", "sq", "rq"]] + [pq_res[name]["n"]]
+        row = ([name] + 
+            [pq_res[name][k] * 100 for k in ["pq", "sq", "rq"]] + [pq_res[name]["n"]] + 
+            [pq_res[name][k] for k in ["iou", "tp", "fp", "fn"]])
+            
         data.append(row)
     table = tabulate(
         data, headers=headers, tablefmt="pipe", floatfmt=".3f", stralign="center", numalign="center"
@@ -173,13 +176,14 @@ def _print_panoptic_results(pq_res):
 
 
 def _print_panoptic_results_per_image(pq_per_image_res):
-    headers = ["", "PQ", "SQ", "RQ", "#categories", "PQ_st", "SQ_st", "RQ_st", "PQ_th", "SQ_th", "RQ_th"]
+    headers = ["", "PQ", "SQ", "RQ", "#cat", "PQ_st", "SQ_st", "RQ_st", "PQ_th", "SQ_th", "RQ_th", "IoU", "TP", "FP", "FN"]
     data = []
     pq_all = []
     for name, pq_res in pq_per_image_res.items():
         row = ([name] + [pq_res[k] * 100 for k in ["pq", "sq", "rq"]] + [pq_res["n"]] + 
                 [pq_res["results_stuff"][k] * 100 for k in ["pq", "sq", "rq"]] +
-                [pq_res["results_thing"][k] * 100 for k in ["pq", "sq", "rq"]])
+                [pq_res["results_thing"][k] * 100 for k in ["pq", "sq", "rq"]] +
+                [pq_res[k] for k in ["iou", "tp", "fp", "fn"]])
 
         data.append(row)
         pq_all.append(pq_res["pq"])
@@ -187,7 +191,7 @@ def _print_panoptic_results_per_image(pq_per_image_res):
     sorted_data = [x for _,x in sorted(zip(pq_all,data))]
 
     table = tabulate(
-        sorted_data, headers=headers, tablefmt="pipe", floatfmt=".3f", stralign="left", numalign="center"
+        sorted_data, headers=headers, tablefmt="pipe", floatfmt=".1f", stralign="left", numalign="center"
     )
     logger.info("Panoptic Evaluation Per Image Results:\n" + table)
 
