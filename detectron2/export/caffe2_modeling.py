@@ -1,4 +1,4 @@
-# Copyright (c) Facebook, Inc. and its affiliates. All Rights Reserved
+# Copyright (c) Facebook, Inc. and its affiliates.
 
 import functools
 import io
@@ -231,7 +231,7 @@ class Caffe2MetaArch(Caffe2Compatible, torch.nn.Module):
         Where
 
             * batched_inputs (list[dict]): the original input format of the meta arch
-            * c2_inputs (dict[str, Tensor]): the caffe2 inputs.
+            * c2_inputs (tuple[Tensor]): the caffe2 inputs.
             * c2_results (dict[str, Tensor]): the caffe2 output format,
                 corresponding to the outputs of the :meth:`forward` function.
             * detectron2_outputs: the original output format of the meta arch.
@@ -277,7 +277,8 @@ class Caffe2GeneralizedRCNN(Caffe2MetaArch):
     @staticmethod
     def get_outputs_converter(predict_net, init_net):
         def f(batched_inputs, c2_inputs, c2_results):
-            image_sizes = [[int(im[0]), int(im[1])] for im in c2_inputs["im_info"]]
+            _, im_info = c2_inputs
+            image_sizes = [[int(im[0]), int(im[1])] for im in im_info]
             results = assemble_rcnn_outputs_by_name(image_sizes, c2_results)
             return meta_arch.GeneralizedRCNN._postprocess(results, batched_inputs, image_sizes)
 
@@ -319,7 +320,6 @@ class Caffe2PanopticFPN(Caffe2MetaArch):
         check_set_pb_arg(predict_net, "meta_architecture", "s", b"PanopticFPN")
 
         # Inference parameters:
-        check_set_pb_arg(predict_net, "combine_on", "i", self._wrapped_model.combine_on)
         check_set_pb_arg(
             predict_net,
             "combine_overlap_threshold",
@@ -341,7 +341,6 @@ class Caffe2PanopticFPN(Caffe2MetaArch):
 
     @staticmethod
     def get_outputs_converter(predict_net, init_net):
-        combine_on = get_pb_arg_vali(predict_net, "combine_on", None)
         combine_overlap_threshold = get_pb_arg_valf(predict_net, "combine_overlap_threshold", None)
         combine_stuff_area_limit = get_pb_arg_vali(predict_net, "combine_stuff_area_limit", None)
         combine_instances_confidence_threshold = get_pb_arg_valf(
@@ -349,7 +348,8 @@ class Caffe2PanopticFPN(Caffe2MetaArch):
         )
 
         def f(batched_inputs, c2_inputs, c2_results):
-            image_sizes = [[int(im[0]), int(im[1])] for im in c2_inputs["im_info"]]
+            _, im_info = c2_inputs
+            image_sizes = [[int(im[0]), int(im[1])] for im in im_info]
             detector_results = assemble_rcnn_outputs_by_name(
                 image_sizes, c2_results, force_mask_on=True
             )
@@ -367,15 +367,14 @@ class Caffe2PanopticFPN(Caffe2MetaArch):
 
                 processed_results.append({"sem_seg": sem_seg_r, "instances": detector_r})
 
-                if combine_on:
-                    panoptic_r = combine_semantic_and_instance_outputs(
-                        detector_r,
-                        sem_seg_r.argmax(dim=0),
-                        combine_overlap_threshold,
-                        combine_stuff_area_limit,
-                        combine_instances_confidence_threshold,
-                    )
-                    processed_results[-1]["panoptic_seg"] = panoptic_r
+                panoptic_r = combine_semantic_and_instance_outputs(
+                    detector_r,
+                    sem_seg_r.argmax(dim=0),
+                    combine_overlap_threshold,
+                    combine_stuff_area_limit,
+                    combine_instances_confidence_threshold,
+                )
+                processed_results[-1]["panoptic_seg"] = panoptic_r
             return processed_results
 
         return f
@@ -473,7 +472,8 @@ class Caffe2RetinaNet(Caffe2MetaArch):
         )
 
         def f(batched_inputs, c2_inputs, c2_results):
-            image_sizes = [[int(im[0]), int(im[1])] for im in c2_inputs["im_info"]]
+            _, im_info = c2_inputs
+            image_sizes = [[int(im[0]), int(im[1])] for im in im_info]
 
             num_features = len([x for x in c2_results.keys() if x.startswith("box_cls_")])
             pred_logits = [c2_results["box_cls_{}".format(i)] for i in range(num_features)]

@@ -1,4 +1,4 @@
-# Copyright (c) Facebook, Inc. and its affiliates. All Rights Reserved
+# Copyright (c) Facebook, Inc. and its affiliates.
 import atexit
 import functools
 import logging
@@ -6,9 +6,10 @@ import os
 import sys
 import time
 from collections import Counter
-from fvcore.common.file_io import PathManager
 from tabulate import tabulate
 from termcolor import colored
+
+from detectron2.utils.file_io import PathManager
 
 
 class _ColorfulFormatter(logging.Formatter):

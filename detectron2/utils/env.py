@@ -1,4 +1,4 @@
-# Copyright (c) Facebook, Inc. and its affiliates. All Rights Reserved
+# Copyright (c) Facebook, Inc. and its affiliates.
 import importlib
 import importlib.util
 import logging
@@ -34,7 +34,7 @@ def seed_all_rng(seed=None):
         logger = logging.getLogger(__name__)
         logger.info("Using a generated random seed {}".format(seed))
     np.random.seed(seed)
-    torch.set_rng_state(torch.manual_seed(seed).get_state())
+    torch.manual_seed(seed)
     random.seed(seed)
 
 
@@ -78,7 +78,7 @@ def _configure_libraries():
     # fmt: off
     assert get_version(torch) >= (1, 4), "Requires torch>=1.4"
     import fvcore
-    assert get_version(fvcore, 3) >= (0, 1, 1), "Requires fvcore>=0.1.1"
+    assert get_version(fvcore, 3) >= (0, 1, 2), "Requires fvcore>=0.1.2"
     import yaml
     assert get_version(yaml) >= (5, 1), "Requires pyyaml>=5.1"
     # fmt: on

@@ -3,11 +3,22 @@
 import logging
 import os
 from collections import OrderedDict
+from typing import List, Optional
+import torch
+from torch import nn
 
 from detectron2.checkpoint import DetectionCheckpointer
 from detectron2.config import CfgNode
 from detectron2.engine import DefaultTrainer
-from detectron2.evaluation import COCOEvaluator, DatasetEvaluators
+from detectron2.evaluation import (
+    COCOEvaluator,
+    DatasetEvaluator,
+    DatasetEvaluators,
+    inference_on_dataset,
+    print_csv_format,
+)
+from detectron2.solver.build import get_default_optimizer_params, maybe_add_gradient_clipping
+from detectron2.utils import comm
 from detectron2.utils.events import EventWriter, get_event_storage
 
 from densepose import (
@@ -24,6 +35,7 @@ from densepose.data import (
     build_inference_based_loaders,
     has_inference_based_loaders,
 )
+from densepose.modeling.cse import Embedder
 
 
 class SampleCountingLoader:
@@ -65,13 +77,108 @@ class SampleCountMetricPrinter(EventWriter):
 
 class Trainer(DefaultTrainer):
     @classmethod
-    def build_evaluator(cls, cfg: CfgNode, dataset_name, output_folder=None):
+    def extract_embedder_from_model(cls, model: nn.Module) -> Optional[Embedder]:
+        if isinstance(model, nn.parallel.DistributedDataParallel):
+            model = model.module
+        if hasattr(model, "roi_heads") and hasattr(model.roi_heads, "embedder"):
+            return model.roi_heads.embedder
+        return None
+
+    # TODO: the only reason to copy the base class code here is to pass the embedder from
+    # the model to the evaluator; that should be refactored to avoid unnecessary copy-pasting
+    @classmethod
+    def test(cls, cfg: CfgNode, model: nn.Module, evaluators: List[DatasetEvaluator] = None):
+        """
+        Args:
+            cfg (CfgNode):
+            model (nn.Module):
+            evaluators (list[DatasetEvaluator] or None): if None, will call
+                :meth:`build_evaluator`. Otherwise, must have the same length as
+                ``cfg.DATASETS.TEST``.
+
+        Returns:
+            dict: a dict of result metrics
+        """
+        logger = logging.getLogger(__name__)
+        if isinstance(evaluators, DatasetEvaluator):
+            evaluators = [evaluators]
+        if evaluators is not None:
+            assert len(cfg.DATASETS.TEST) == len(evaluators), "{} != {}".format(
+                len(cfg.DATASETS.TEST), len(evaluators)
+            )
+
+        results = OrderedDict()
+        for idx, dataset_name in enumerate(cfg.DATASETS.TEST):
+            data_loader = cls.build_test_loader(cfg, dataset_name)
+            # When evaluators are passed in as arguments,
+            # implicitly assume that evaluators can be created before data_loader.
+            if evaluators is not None:
+                evaluator = evaluators[idx]
+            else:
+                try:
+                    embedder = cls.extract_embedder_from_model(model)
+                    evaluator = cls.build_evaluator(cfg, dataset_name, embedder=embedder)
+                except NotImplementedError:
+                    logger.warn(
+                        "No evaluator found. Use `DefaultTrainer.test(evaluators=)`, "
+                        "or implement its `build_evaluator` method."
+                    )
+                    results[dataset_name] = {}
+                    continue
+            results_i = inference_on_dataset(model, data_loader, evaluator)
+            results[dataset_name] = results_i
+            if comm.is_main_process():
+                assert isinstance(
+                    results_i, dict
+                ), "Evaluator must return a dict on the main process. Got {} instead.".format(
+                    results_i
+                )
+                logger.info("Evaluation results for {} in csv format:".format(dataset_name))
+                print_csv_format(results_i)
+
+        if len(results) == 1:
+            results = list(results.values())[0]
+        return results
+
+    @classmethod
+    def build_evaluator(
+        cls,
+        cfg: CfgNode,
+        dataset_name: str,
+        output_folder: Optional[str] = None,
+        embedder: Embedder = None,
+    ) -> DatasetEvaluators:
         if output_folder is None:
             output_folder = os.path.join(cfg.OUTPUT_DIR, "inference")
-        evaluators = [COCOEvaluator(dataset_name, cfg, True, output_folder)]
+        evaluators = [COCOEvaluator(dataset_name, output_dir=output_folder)]
         if cfg.MODEL.DENSEPOSE_ON:
-            evaluators.append(DensePoseCOCOEvaluator(dataset_name, True, output_folder))
+            evaluators.append(
+                DensePoseCOCOEvaluator(dataset_name, True, output_folder, embedder=embedder)
+            )
         return DatasetEvaluators(evaluators)
+
+    @classmethod
+    def build_optimizer(cls, cfg: CfgNode, model: nn.Module):
+        params = get_default_optimizer_params(
+            model,
+            base_lr=cfg.SOLVER.BASE_LR,
+            weight_decay=cfg.SOLVER.WEIGHT_DECAY,
+            weight_decay_norm=cfg.SOLVER.WEIGHT_DECAY_NORM,
+            bias_lr_factor=cfg.SOLVER.BIAS_LR_FACTOR,
+            weight_decay_bias=cfg.SOLVER.WEIGHT_DECAY_BIAS,
+            overrides={
+                "features": {
+                    "lr": cfg.SOLVER.BASE_LR * cfg.MODEL.ROI_DENSEPOSE_HEAD.CSE.FEATURES_LR_FACTOR,
+                },
+                "embeddings": {
+                    "lr": cfg.SOLVER.BASE_LR * cfg.MODEL.ROI_DENSEPOSE_HEAD.CSE.EMBEDDING_LR_FACTOR,
+                },
+            },
+        )
+        optimizer = torch.optim.SGD(
+            params, cfg.SOLVER.BASE_LR, momentum=cfg.SOLVER.MOMENTUM, nesterov=cfg.SOLVER.NESTEROV
+        )
+        return maybe_add_gradient_clipping(cfg, optimizer)
 
     @classmethod
     def build_test_loader(cls, cfg: CfgNode, dataset_name):

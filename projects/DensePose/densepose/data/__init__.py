@@ -1,5 +1,6 @@
-# Copyright (c) Facebook, Inc. and its affiliates. All Rights Reserved
+# Copyright (c) Facebook, Inc. and its affiliates.
 
+from .meshes import builtin
 from .build import (
     build_detection_test_loader,
     build_detection_train_loader,

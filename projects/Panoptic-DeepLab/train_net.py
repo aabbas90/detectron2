@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Copyright (c) Facebook, Inc. and its affiliates. All Rights Reserved
+# Copyright (c) Facebook, Inc. and its affiliates.
 
 """
 Panoptic-DeepLab Training Script.
@@ -59,6 +59,8 @@ class Trainer(DefaultTrainer):
         For your own dataset, you can simply create an evaluator manually in your
         script and do not have to worry about the hacky if-else logic here.
         """
+        if cfg.MODEL.PANOPTIC_DEEPLAB.BENCHMARK_NETWORK_SPEED:
+            return None
         if output_folder is None:
             output_folder = os.path.join(cfg.OUTPUT_DIR, "inference")
         evaluator_list = []
@@ -72,12 +74,17 @@ class Trainer(DefaultTrainer):
             evaluator_list.append(CityscapesSemSegEvaluator(dataset_name))
             evaluator_list.append(CityscapesInstanceEvaluator(dataset_name))
         if evaluator_type == "coco_panoptic_seg":
-            # Evaluate bbox and segm.
-            cfg.defrost()
-            cfg.MODEL.MASK_ON = True
-            cfg.MODEL.KEYPOINT_ON = False
-            cfg.freeze()
-            evaluator_list.append(COCOEvaluator(dataset_name, cfg, True, output_folder))
+            # `thing_classes` in COCO panoptic metadata includes both thing and
+            # stuff classes for visualization. COCOEvaluator requires metadata
+            # which only contains thing classes, thus we map the name of
+            # panoptic datasets to their corresponding instance datasets.
+            dataset_name_mapper = {
+                "coco_2017_val_panoptic": "coco_2017_val",
+                "coco_2017_val_100_panoptic": "coco_2017_val_100",
+            }
+            evaluator_list.append(
+                COCOEvaluator(dataset_name_mapper[dataset_name], output_dir=output_folder)
+            )
         if len(evaluator_list) == 0:
             raise NotImplementedError(
                 "no Evaluator for the dataset {} with the type {}".format(
@@ -117,18 +124,16 @@ class Trainer(DefaultTrainer):
 
         optimizer_type = cfg.SOLVER.OPTIMIZER
         if optimizer_type == "SGD":
-            optimizer = torch.optim.SGD(
+            return maybe_add_gradient_clipping(cfg, torch.optim.SGD)(
                 params,
                 cfg.SOLVER.BASE_LR,
                 momentum=cfg.SOLVER.MOMENTUM,
                 nesterov=cfg.SOLVER.NESTEROV,
             )
         elif optimizer_type == "ADAM":
-            optimizer = torch.optim.Adam(params, cfg.SOLVER.BASE_LR)
+            return maybe_add_gradient_clipping(cfg, torch.optim.Adam)(params, cfg.SOLVER.BASE_LR)
         else:
             raise NotImplementedError(f"no optimizer type {optimizer_type}")
-        optimizer = maybe_add_gradient_clipping(cfg, optimizer)
-        return optimizer
 
 
 def setup(args):

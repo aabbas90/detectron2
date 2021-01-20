@@ -1,4 +1,4 @@
-# Copyright (c) Facebook, Inc. and its affiliates. All Rights Reserved
+# Copyright (c) Facebook, Inc. and its affiliates.
 import contextlib
 import io
 import logging
@@ -6,11 +6,13 @@ import os
 from collections import defaultdict
 from dataclasses import dataclass
 from typing import Any, Dict, Iterable, List, Optional
-from fvcore.common.file_io import PathManager
 from fvcore.common.timer import Timer
 
 from detectron2.data import DatasetCatalog, MetadataCatalog
 from detectron2.structures import BoxMode
+from detectron2.utils.file_io import PathManager
+
+from densepose.data.meshes.catalog import MeshCatalog
 
 from ..utils import maybe_prepend_base_path
 
@@ -82,6 +84,16 @@ DATASETS = [
         name="posetrack2017_val",
         images_root="posetrack2017/posetrack_data_2017",
         annotations_fpath="posetrack2017/densepose_posetrack_val2017.json",
+    ),
+    CocoDatasetInfo(
+        name="lvis_v05_train",
+        images_root="coco/train2017",
+        annotations_fpath="lvis/lvis_v0.5_plus_dp_train.json",
+    ),
+    CocoDatasetInfo(
+        name="lvis_v05_val",
+        images_root="coco/val2017",
+        annotations_fpath="lvis/lvis_v0.5_plus_dp_val.json",
     ),
 ]
 
@@ -207,6 +219,13 @@ def _maybe_add_densepose(obj: Dict[str, Any], ann_dict: Dict[str, Any]):
             obj[key] = ann_dict[key]
 
 
+def _maybe_add_cse_data(obj: Dict[str, Any], ann_dict: Dict[str, Any]):
+    if "dp_vertex" in ann_dict:
+        obj["vertex_ids"] = ann_dict["dp_vertex"]
+    if "ref_model" in ann_dict:
+        obj["mesh_id"] = MeshCatalog.get_mesh_id(ann_dict["ref_model"])
+
+
 def _combine_images_with_annotations(
     dataset_name: str,
     image_root: str,
@@ -238,6 +257,7 @@ def _combine_images_with_annotations(
             _maybe_add_segm(obj, ann_dict)
             _maybe_add_keypoints(obj, ann_dict)
             _maybe_add_densepose(obj, ann_dict)
+            _maybe_add_cse_data(obj, ann_dict)
             objs.append(obj)
         record["annotations"] = objs
         dataset_dicts.append(record)
