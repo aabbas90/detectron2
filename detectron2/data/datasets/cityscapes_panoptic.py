@@ -125,6 +125,11 @@ _RAW_CITYSCAPES_PANOPTIC_SPLITS = {
         "cityscapes/gtFine/cityscapes_panoptic_val",
         "cityscapes/gtFine/cityscapes_panoptic_val.json",
     ),
+    "cityscapes_fine_panoptic_small_val": (
+        "cityscapes_small_val/cityscapes/leftImg8bit/val",
+        "cityscapes_small_val/cityscapes/gtFine/cityscapes_panoptic_val",
+        "cityscapes_small_val/cityscapes/gtFine/cityscapes_panoptic_val.json",
+    ),
     # "cityscapes_fine_panoptic_test": not supported yet
 }
 

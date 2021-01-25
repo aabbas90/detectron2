@@ -73,7 +73,7 @@ class DeepLabV3PlusHead(nn.Module):
 
         # fmt: off
         self.in_features      = in_features  # starting from "res2" to "res5"
-        in_channels           = [input_shape[f].channels + additional_input_channels for f in self.in_features]
+        in_channels           = [input_shape[f].channels for f in self.in_features]
         aspp_channels         = decoder_channels[-1]
         self.ignore_value     = ignore_value
         self.common_stride    = common_stride  # output stride
