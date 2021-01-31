@@ -153,20 +153,39 @@ class COCOPanopticEvaluator(DatasetEvaluator):
         res["PQ_st"] = 100 * pq_res["Stuff"]["pq"]
         res["SQ_st"] = 100 * pq_res["Stuff"]["sq"]
         res["RQ_st"] = 100 * pq_res["Stuff"]["rq"]
-
+        
         results = OrderedDict({"panoptic_seg": res})
+        # Convert class ids to names:
+        per_class = pq_res['per_class']
+        new_per_class = {}
+        for label in per_class.keys():
+            isthing = label in self._metadata.thing_dataset_id_to_contiguous_id.keys()
+            if isthing:
+                class_name = self._metadata.thing_classes[self._metadata.thing_dataset_id_to_contiguous_id[label]]
+            else:
+                class_name = self._metadata.stuff_classes[self._metadata.stuff_dataset_id_to_contiguous_id[label]]
+            new_per_class[class_name] = per_class[label]
+        pq_res['per_class'] = new_per_class
         _print_panoptic_results(pq_res)
         _print_panoptic_results_per_image(pq_per_image_res)
         return results
 
 
 def _print_panoptic_results(pq_res):
-    headers = ["", "PQ", "SQ", "RQ", "#categories", "IoU", "TP", "FP", "FN"]
+    headers = ["", "PQ", "SQ", "RQ", "IoU", "TP", "FP", "FN", "#"]
     data = []
     for name in ["All", "Things", "Stuff"]:
         row = ([name] + 
-            [pq_res[name][k] * 100 for k in ["pq", "sq", "rq"]] + [pq_res[name]["n"]] + 
-            [pq_res[name][k] for k in ["iou", "tp", "fp", "fn"]])
+            [pq_res[name][k] * 100 for k in ["pq", "sq", "rq"]] + [pq_res[name]["iou"]] +
+            [int(pq_res[name][k]) for k in ["tp", "fp", "fn"]] + [int(pq_res[name]["n"])])
+            
+        data.append(row)
+    per_class = pq_res['per_class']
+    for label in per_class.keys():
+        num_points = per_class[label]['tp'] + per_class[label]['fn'] + per_class[label]['fp'] 
+        row = ([label] + 
+            [per_class[label][k] * 100 for k in ["pq", "sq", "rq"]] + [per_class[label]["iou"]] +
+            [int(per_class[label][k]) for k in ["tp", "fp", "fn"]] + [int(num_points)])
             
         data.append(row)
     table = tabulate(
