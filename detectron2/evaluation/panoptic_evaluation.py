@@ -111,7 +111,6 @@ class COCOPanopticEvaluator(DatasetEvaluator):
 
     def evaluate(self):
         comm.synchronize()
-
         self._predictions = comm.gather(self._predictions)
         self._predictions = list(itertools.chain(*self._predictions))
         if not comm.is_main_process():
@@ -134,6 +133,18 @@ class COCOPanopticEvaluator(DatasetEvaluator):
                 f.write(json.dumps(json_data))
 
             from panopticapi.evaluation import pq_compute
+            import string
+            import random
+            import shutil
+            rand_str = lambda n: ''.join([random.choice(string.ascii_lowercase) for i in range(n)])
+            results_dir = None
+            while results_dir is None or os.path.exists(results_dir):
+                results_dir = '/BS/ahmed_projects/work/data/panoptic_eval/' +  rand_str(10)
+            logger.info("Writing all panoptic predictions for future use to {} ...".format(results_dir))
+            
+            shutil.copytree(os.path.dirname(self._predictions_json), results_dir)
+            png_path = os.path.join(results_dir, os.path.splitext(os.path.basename(self._predictions_json))[0])
+            shutil.copytree(pred_dir, png_path)
 
             with contextlib.redirect_stdout(io.StringIO()):
                 pq_res, pq_per_image_res = pq_compute(
