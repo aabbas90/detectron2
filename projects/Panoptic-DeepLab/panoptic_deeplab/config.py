@@ -57,3 +57,7 @@ def add_panoptic_deeplab_config(cfg):
     cfg.MODEL.PANOPTIC_DEEPLAB.SIZE_DIVISIBILITY = -1
     # Only evaluates network speed (ignores post-processing).
     cfg.MODEL.PANOPTIC_DEEPLAB.BENCHMARK_NETWORK_SPEED = False
+
+    # Evaluation batch size:
+    cfg.DATALOADER.EVAL_BATCH_SIZE = 1
+

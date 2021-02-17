@@ -184,12 +184,13 @@ class PanopticDeepLab(nn.Module):
             import os
 
             img = convert_image_to_rgb(img.permute(1, 2, 0), self.input_format).astype("uint8")
+            img = np.array(Image.fromarray(img).resize((width, height)))
             v_panoptic = Visualizer(img, self.meta)
             v_panoptic = v_panoptic.draw_panoptic_seg_predictions(panoptic_image.cpu(), None)
             pan_img = v_panoptic.get_image()
             image_path = input_per_image['file_name'].split(os.sep)
             image_name = os.path.splitext(image_path[-1])[0] 
-            Image.fromarray(pan_img).save(os.path.join('/home/ahabbas/projects/conseg/affinityNet/output_pdl/eval_vis', image_name + '_panoptic.png'))
+            Image.fromarray(pan_img).save(os.path.join('/home/ahabbas/projects/conseg/affinityNet/output_pdl/coco/eval_vis', image_name + '_panoptic.png'))
 
             # For panoptic segmentation evaluation.
             processed_results[-1]["panoptic_seg"] = (panoptic_image, None)
