@@ -101,26 +101,52 @@ class DeepLabV3PlusHead(nn.Module):
 
             if idx == len(self.in_features) - 1:
                 # ASPP module
-                if train_size is not None:
-                    train_h, train_w = train_size
-                    encoder_stride = input_shape[self.in_features[-1]].stride
-                    if train_h % encoder_stride or train_w % encoder_stride:
-                        raise ValueError("Crop size need to be divisible by encoder stride.")
-                    pool_h = train_h // encoder_stride
-                    pool_w = train_w // encoder_stride
-                    pool_kernel_size = (pool_h, pool_w)
+                if len(aspp_dilations) > 0:
+                    if train_size is not None:
+                        train_h, train_w = train_size
+                        encoder_stride = input_shape[self.in_features[-1]].stride
+                        if train_h % encoder_stride or train_w % encoder_stride:
+                            raise ValueError("Crop size need to be divisible by encoder stride.")
+                        pool_h = train_h // encoder_stride
+                        pool_w = train_w // encoder_stride
+                        pool_kernel_size = (pool_h, pool_w)
+                    else:
+                        pool_kernel_size = None
+                    project_conv = ASPP(
+                        in_channel,
+                        aspp_channels,
+                        aspp_dilations,
+                        norm=norm,
+                        activation=F.relu,
+                        pool_kernel_size=pool_kernel_size,
+                        dropout=aspp_dropout,
+                        use_depthwise_separable_conv=use_depthwise_separable_conv,
+                    )
                 else:
-                    pool_kernel_size = None
-                project_conv = ASPP(
-                    in_channel,
-                    aspp_channels,
-                    aspp_dilations,
-                    norm=norm,
-                    activation=F.relu,
-                    pool_kernel_size=pool_kernel_size,
-                    dropout=aspp_dropout,
-                    use_depthwise_separable_conv=use_depthwise_separable_conv,
-                )
+                    # Use standard convs instead of ASPP.
+                    project_conv = nn.Sequential(
+                            Conv2d(
+                                in_channel,
+                                aspp_channels * 2,
+                                kernel_size=1,
+                                padding=0,
+                                bias=use_bias,
+                                norm=get_norm(norm, aspp_channels * 2),
+                                activation=F.relu,
+                            ),
+                            Conv2d(
+                                aspp_channels * 2,
+                                aspp_channels,
+                                kernel_size=1,
+                                padding=0,
+                                bias=use_bias,
+                                norm=get_norm(norm, aspp_channels),
+                                activation=F.relu,
+                            ),
+                        )
+                    weight_init.c2_xavier_fill(project_conv[0])
+                    weight_init.c2_xavier_fill(project_conv[1])
+
                 fuse_conv = None
             else:
                 project_conv = Conv2d(
