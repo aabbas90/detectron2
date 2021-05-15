@@ -138,6 +138,7 @@ class TrainerBase:
                 # due to exceptions.
                 self.iter += 1
             except Exception:
+                self.after_step()
                 logger.exception("Exception during training:")
                 raise
             finally:

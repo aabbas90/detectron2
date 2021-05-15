@@ -44,6 +44,26 @@ class CityscapesEvaluator(DatasetEvaluator):
             "Writing cityscapes results to temporary directory {} ...".format(self._temp_dir)
         )
 
+    # def reset(self):
+    #     import string
+    #     import random
+    #     import shutil
+    #     rand_str = lambda n: ''.join([random.choice(string.ascii_lowercase) for i in range(n)])
+    #     results_dir = '/BS/ahmed_projects/work/data/panoptic_eval/' +  rand_str(10)
+    #     self._logger.info("Writing all cityscapes predictions for future use to {} ...".format(results_dir))
+    #     os.makedirs(results_dir, exist_ok=True)
+    #     # self._working_dir = tempfile.TemporaryDirectory(prefix="cityscapes_eval_")
+    #     self._temp_dir = results_dir # self._working_dir.name
+    #     # All workers will write to the same results directory
+    #     # TODO this does not work in distributed training
+    #     self._temp_dir = comm.all_gather(self._temp_dir)[0]
+    #     #if self._temp_dir != self._working_dir.name:
+    #         # import pdb; pdb.set_trace()
+    #         # self._working_dir.cleanup()
+    #     self._logger.info(
+    #         "Writing cityscapes results to temporary directory {} ...".format(self._temp_dir)
+    #     )
+
 
 class CityscapesInstanceEvaluator(CityscapesEvaluator):
     """
@@ -123,7 +143,7 @@ class CityscapesInstanceEvaluator(CityscapesEvaluator):
 
         ret = OrderedDict()
         ret["segm"] = {"AP": results["allAp"] * 100, "AP50": results["allAp50%"] * 100}
-        self._working_dir.cleanup()
+        self._working_dir.cleanup() #TODOAA
         return ret
 
 
@@ -191,5 +211,5 @@ class CityscapesSemSegEvaluator(CityscapesEvaluator):
             "IoU_sup": 100.0 * results["averageScoreCategories"],
             "iIoU_sup": 100.0 * results["averageScoreInstCategories"],
         }
-        self._working_dir.cleanup()
+        self._working_dir.cleanup() #TODOAA
         return ret

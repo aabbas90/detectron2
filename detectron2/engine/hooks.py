@@ -19,6 +19,8 @@ from detectron2.utils.events import EventStorage, EventWriter
 from detectron2.utils.file_io import PathManager
 
 from .train_loop import HookBase
+import signal
+import sys
 
 __all__ = [
     "CallbackHook",
@@ -191,10 +193,22 @@ class PeriodicCheckpointer(_PeriodicCheckpointer, HookBase):
 
     def before_train(self):
         self.max_iter = self.trainer.max_iter
+        signal.signal(signal.SIGTERM, self.force_save_ckpt)
+        signal.signal(signal.SIGINT, self.force_save_ckpt)
+        signal.signal(signal.SIGUSR1, self.force_save_ckpt)
+        self.force_save = False 
+        print(f'Adding hook to save checkpoint before exiting due to slurm timeout.')
+
+    def force_save_ckpt(self, signum, frame):
+        print(f'force_save_ckpt {self.force_save}')
+        self.force_save = True
 
     def after_step(self):
         # No way to use **kwargs
-        self.step(self.trainer.iter)
+        self.step(self.trainer.iter, self.force_save)
+        if self.force_save:
+            print(f'Exiting due to slurm termination signal after saving checkpoint.')
+            sys.exit(0)
 
 
 class LRScheduler(HookBase):
