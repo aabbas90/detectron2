@@ -100,6 +100,11 @@ _PREDEFINED_SPLITS_COCO_PANOPTIC = {
         "coco/annotations/panoptic_val2017_100.json",
         "coco/panoptic_stuff_val2017_100",
     ),
+    "coco_2017_test_panoptic": (
+        "coco/panoptic_fake_test_2017",
+        "coco/annotations/panoptic_fake_test_2017.json",
+        "coco/panoptic_stuff_fake_test_2017",
+    ),
 }
 
 

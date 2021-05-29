@@ -40,25 +40,48 @@ def load_coco_panoptic_json(json_file, image_dir, gt_dir, meta):
         json_info = json.load(f)
 
     ret = []
-    for ann in json_info["annotations"]:
-        image_id = int(ann["image_id"])
-        # TODO: currently we assume image and label has the same filename but
-        # different extension, and images have extension ".jpg" for COCO. Need
-        # to make image extension a user-provided argument if we extend this
-        # function to support other COCO-like datasets.
-        image_file = os.path.join(image_dir, os.path.splitext(ann["file_name"])[0] + ".jpg")
-        assert PathManager.isfile(image_file), image_file
-        label_file = os.path.join(gt_dir, ann["file_name"])
-        assert PathManager.isfile(label_file), label_file
-        segments_info = [_convert_category_id(x, meta) for x in ann["segments_info"]]
-        ret.append(
-            {
-                "file_name": image_file,
-                "image_id": image_id,
-                "pan_seg_file_name": label_file,
-                "segments_info": segments_info,
-            }
-        )
+    if not "fake" in gt_dir:
+        for ann in json_info["annotations"]:
+            image_id = int(ann["image_id"])
+            # TODO: currently we assume image and label has the same filename but
+            # different extension, and images have extension ".jpg" for COCO. Need
+            # to make image extension a user-provided argument if we extend this
+            # function to support other COCO-like datasets.
+            image_file = os.path.join(image_dir, os.path.splitext(ann["file_name"])[0] + ".jpg")
+            assert PathManager.isfile(image_file), image_file
+            label_file = os.path.join(gt_dir, ann["file_name"])
+            assert PathManager.isfile(label_file), label_file
+            segments_info = [_convert_category_id(x, meta) for x in ann["segments_info"]]
+            ret.append(
+                {
+                    "file_name": image_file,
+                    "image_id": image_id,
+                    "pan_seg_file_name": label_file,
+                    "segments_info": segments_info,
+                }
+            )
+    else:
+        print('Assuming fake labels dataset.')
+        for img in json_info["images"]:
+            image_id = int(img["id"])
+            # TODO: currently we assume image and label has the same filename but
+            # different extension, and images have extension ".jpg" for COCO. Need
+            # to make image extension a user-provided argument if we extend this
+            # function to support other COCO-like datasets.
+            image_file = os.path.join(image_dir, os.path.splitext(img["file_name"])[0] + ".jpg")
+            assert PathManager.isfile(image_file), image_file
+            label_file = os.path.join(gt_dir, img["file_name"].replace(".jpg", ".png"))
+            assert PathManager.isfile(label_file), label_file
+            segments_info = [] #_convert_category_id(x, meta) for x in ann["segments_info"]]
+            ret.append(
+                {
+                    "file_name": image_file,
+                    "image_id": image_id,
+                    "pan_seg_file_name": label_file,
+                    "segments_info": segments_info,
+                }
+            )
+
     assert len(ret), f"No images found in {image_dir}!"
     assert PathManager.isfile(ret[0]["pan_seg_file_name"]), ret[0]["pan_seg_file_name"]
     return ret

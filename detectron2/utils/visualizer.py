@@ -491,7 +491,7 @@ class Visualizer:
                 color=mask_color,
                 edge_color=_OFF_WHITE,
                 text=text,
-                alpha=alpha,
+                alpha=0.1,
                 area_threshold=area_threshold,
             )
 
@@ -506,9 +506,10 @@ class Visualizer:
             scores = [x["score"] for x in sinfo]
         except KeyError:
             scores = None
-        labels = _create_text_labels(
-            category_ids, scores, self.metadata.thing_classes, [x.get("iscrowd", 0) for x in sinfo]
-        )
+        labels = None
+        #  _create_text_labels(
+        #     category_ids, scores, self.metadata.thing_classes, [x.get("iscrowd", 0) for x in sinfo]
+        # )
 
         try:
             colors = [
@@ -1113,6 +1114,7 @@ class Visualizer:
         Returns:
             output (VisImage): image object with polygon drawn.
         """
+        edge_color = (1.0, 1.0, 1.0)
         if edge_color is None:
             # make edge color darker than the polygon color
             if alpha > 0.8:

@@ -131,8 +131,22 @@ def inference_on_dataset(model, data_loader, evaluator):
     num_warmup = min(5, total - 1)
     start_time = time.perf_counter()
     total_compute_time = 0
+    import os
+    eval_mode = 0
+    start_index = 0
+    increment = -1
+    if os.environ.get('EVAL'):
+        start_index = os.environ.get('START_INDEX_VAR')
+        increment = int(os.environ['INCREMENT'])
+        eval_mode = int(os.environ['EVAL'])
     with inference_context(model), torch.no_grad():
         for idx, inputs in enumerate(data_loader):
+            if eval_mode == 0:
+                if idx < start_index:
+                    continue
+                if idx - start_index >= increment and increment > 0:
+                    exit(0)
+
             if idx == num_warmup:
                 start_time = time.perf_counter()
                 total_compute_time = 0
